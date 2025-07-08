@@ -1,0 +1,100 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Multiplicador Online</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: white;
+      text-align: center;
+      padding: 40px;
+    }
+    .container {
+      background: white;
+      color: black;
+      border-radius: 16px;
+      padding: 30px;
+      width: 90%;
+      max-width: 600px;
+      margin: auto;
+    }
+    input, button {
+      font-size: 16px;
+      padding: 10px;
+      margin: 10px;
+    }
+    .feedback {
+      font-size: 20px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Multiplicador Online Multijugador</h2>
+    <input type="text" id="username" placeholder="Tu nombre">
+    <button onclick="join()">Entrar</button>
+
+    <div id="game" style="display:none;">
+      <h3 id="playerName"></h3>
+      <div id="problem"></div>
+      <input type="number" id="answer" placeholder="Tu respuesta">
+      <button onclick="submit()">Responder</button>
+      <div class="feedback" id="feedback"></div>
+      <p id="stats"></p>
+      <p id="opponentStats"></p>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let username = "", correct = 0, total = 0, current = 0;
+
+    function join() {
+      username = document.getElementById("username").value.trim();
+      if (!username) return;
+      document.getElementById("game").style.display = "block";
+      document.getElementById("playerName").textContent = "Jugador: " + username;
+      socket.emit("join", username);
+    }
+
+    function submit() {
+      const value = parseInt(document.getElementById("answer").value);
+      if (!isNaN(value)) {
+        socket.emit("answer", value);
+      }
+    }
+
+    socket.on("newProblem", (data) => {
+      current = data.answer;
+      document.getElementById("problem").textContent = data.text;
+      document.getElementById("answer").value = "";
+    });
+
+    socket.on("feedback", (res) => {
+      document.getElementById("feedback").textContent = res.correct
+        ? "✔️ ¡Correcto!"
+        : `❌ Incorrecto. Era ${res.correctAnswer}`;
+      if (res.correct) correct++;
+      total++;
+      updateStats();
+      socket.emit("updateStats", { correct, total });
+    });
+
+    socket.on("opponentStats", (stats) => {
+      const percent = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+      document.getElementById("opponentStats").textContent = `👤 Rival: ${stats.username} ${stats.correct}/${stats.total} (${percent}%)`;
+    });
+
+    function updateStats() {
+      const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
+      document.getElementById("stats").textContent = `✅ Tú: ${correct}/${total} (${percent}%)`;
+    }
+  </script>
+</body>
+</html>
